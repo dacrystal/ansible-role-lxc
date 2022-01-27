@@ -1,5 +1,5 @@
 # - include_role:
-#     name: dacrystal.lxd
+#     name: dacrystal.lxc
 #   vars:
 #     task: image
 #     action: publish

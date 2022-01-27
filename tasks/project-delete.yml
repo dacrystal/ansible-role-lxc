@@ -1,0 +1,21 @@
+# - include_role:
+#     name: dacrystal.lxc
+#   vars:
+#     task: project
+#     action: delete
+#     args:
+#       project: projectname
+#       storage: default
+
+- name: Destroy project - {{ args.project }}
+  shell: "{{ item }}"
+  args:
+    executable: /bin/bash
+  loop: 
+    - lxc --project {{ args.project |quote }} list -c n -f csv | xargs -r lxc --project {{ args.project |quote }} delete --force
+    - lxc --project {{ args.project |quote }} profile list -f csv | cut -d, -f1 | grep -v "default" | xargs -r -n1 lxc --project {{ args.project |quote }} profile delete
+    - lxc --project {{ args.project |quote }} profile edit default <<< ""
+    - lxc --project {{ args.project |quote }} image list -c f -f csv | xargs -r lxc --project {{ args.project |quote }} image delete
+    - lxc --project {{ args.project |quote }} storage volume list {{ args.storage }} -c n -f csv | xargs -r lxc --project {{ args.project |quote }} storage volume delete {{ args.storage }}
+    - lxc project delete {{ args.project |quote }} 
+    

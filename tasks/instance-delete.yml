@@ -1,0 +1,13 @@
+# - include_role:
+#     name: dacrystal.lxd
+#   vars:
+#     task: instance
+#     action: delete
+#     args:
+#       instance: instancename
+#       project: projectname
+#       force: false
+
+
+- name: Delete instance - {{ args.instance }}
+  command: lxc delete {{ args.instance }} {{ '--force' if (args.force |default(false)) else '' }} --project {{ args.project |default("default") |quote }}

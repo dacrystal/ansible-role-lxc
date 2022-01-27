@@ -1,0 +1,51 @@
+# - include_role:
+#     name: dacrystal.lxd
+#   vars:
+#     task: profile
+#     action: create
+#     args:
+#       profile: profilename
+#       project: projectname
+#       description: ""
+#       config:
+#         user.user-data: |
+#           #cloud-config
+#           users:
+#           - name: user
+#             gecos: user 
+#             lock_passwd: true
+#       devices: |
+#         eth0:
+#           name: eth0
+#           network: lxdbr0
+#           type: nic
+#         root:
+#           path: /
+#           pool: default
+#           type: disk
+
+    
+- name: Create profile - {{ args.profile }}
+  command: lxc profile create {{ args.profile|quote }} --project {{ args.project |default("default") |quote }}
+  register: result
+  changed_when: result.rc == 0
+  failed_when: result.rc != 0 and "already exists" not in result.stderr
+
+- name: Edit profile configurations - {{ args.profile }}
+  shell: |
+    _get_conf='lxc profile show {{ args.profile|quote }} --project {{ args.project |default("default") |quote }}' \
+    _old_conf=$($_get_conf) \
+      && lxc profile edit {{ args.profile|quote }} --project {{ args.project |default("default") |quote }} << CONF \
+      && diff --changed-group-format='CHANGED' --unchanged-group-format='' <(echo "$_old_conf") <($_get_conf)
+    description: {{ args.description |default("") }}
+    config: 
+      {{ args.config | default({}) | to_yaml | indent( width=2, first=false) }}
+    devices: 
+      {{ args.devices | default({}) | to_yaml | indent( width=2, first=false) }}
+    CONF
+  args:
+    executable: /bin/bash
+
+  register: result
+  changed_when: (result.rc != 0 and 'CHANGED' in result.stdout)
+  failed_when: result.rc != 0 and "CHANGED" not in result.stdout

@@ -1,0 +1,39 @@
+# - include_role:
+#     name: dacrystal.lxd
+#   vars:
+#     task: volume
+#     action: create
+#     project: projectname
+#     storage: default
+#     volume: volumename
+#     description: ""
+#     target: cluster_member
+#     type: custom
+#     config:
+#       size: "61203283968"
+
+    
+- name: Create volume - {{ args.volume }}
+  command: lxc storage volume create {{ args.storage |default('default') |quote }} {{ args.volume |quote }} --project {{ args.project |default("default") |quote }} {{ '--target ' + args.target if target is defined else ''}}
+  register: result
+  changed_when: result.rc == 0
+  failed_when: result.rc != 0 and "already exists" not in result.stderr
+
+- name: Edit volume configurations - {{ args.volume }}
+  shell: |
+    _get_conf='lxc storage volume show {{ args.storage |default('default') |quote }} {{ args.volume |quote }} --project {{ args.project |default("default") |quote }}' \
+    _old_conf=$($_get_conf) \
+      && lxc storage volume edit {{ args.storage |default('default') |quote }} {{ args.volume |quote }} --project {{ args.project |default("default") |quote }} << CONF \
+      && diff --changed-group-format='CHANGED' --unchanged-group-format='' <(echo "$_old_conf") <($_get_conf)
+    description: {{ args.description |default("") }}
+    type: {{ args.type |default('custom') }}
+    config: 
+      {{ args.config | default({}) | to_yaml | indent( width=2, first=false) }}
+    CONF
+
+  args:
+    executable: /bin/bash
+  register: result
+  changed_when: (result.rc != 0 and 'CHANGED' in result.stdout)
+  failed_when: result.rc != 0 and "CHANGED" not in result.stdout
+  when: result.rc == 0 #TODO: keep volatile.idmap...
